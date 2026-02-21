@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClimaExpert | Sua Carga Térmica em Segundos</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase Configuration -->
+    <script src="supabase-config.js"></script>
+    <!-- Main Application Logic -->
+    <script src="main.js" defer></script>
+</head>
+
+<body>
+    <header>
+        <div class="logo" style="cursor: pointer;" onclick="location.reload()">CLIMAEXPERT</div>
+        <nav class="tabs">
+            <button class="tab-btn active" onclick="switchTab('bot-tab')">ClimaBot</button>
+            <button class="tab-btn" onclick="switchTab('sun-tab')">Simulador Solar</button>
+            <button class="tab-btn" onclick="switchTab('pricing-tab')">Planos</button>
+            <button class="tab-btn" id="history-btn" onclick="switchTab('history-tab')" style="display: none;">Meus
+                Cálculos</button>
+        </nav>
+        <div id="auth-status">
+            <button class="btn-login" onclick="showAuthModal()">Entrar</button>
+        </div>
+    </header>
+
+    <div id="loading-screen" style="display: none;">
+        <div class="loader"></div>
+        <p>Carregando Simulação 3D...</p>
+    </div>
+
+    <!-- MAIN APP TABS -->
+    <main id="bot-tab" class="tab-content active text-content-main">
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Descubra o ar-condicionado ideal para você.</h1>
+                <p>Use nosso assistente inteligente para calcular a carga térmica exata do seu ambiente e garanta o
+                    máximo de conforto com eficiência energética.</p>
+                <div class="info-section">
+                    <div class="info-card">
+                        <i class="fas fa-bolt"></i>
+                        <h3>Eficiência</h3>
+                        <p>Evite gastar energia à toa com aparelhos subdimensionados ou superdimensionados.</p>
+                    </div>
+                    <div class="info-card">
+                        <i class="fas fa-shield-halved"></i>
+                        <h3>Vida Útil</h3>
+                        <p>O aparelho correto trabalha na faixa ideal, aumentando a durabilidade do compressor.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bot-container" id="clima-bot">
+                <div class="bot-header">
+                    <div class="bot-status"></div>
+                    <span style="font-weight: 600;">ClimaBot Assistente</span>
+                </div>
+                <div class="chat-window" id="chat-window">
+                    <div class="message bot">
+                        Olá! Eu sou o ClimaBot. Vamos descobrir qual a potência (BTUs) ideal para o seu ambiente?
+                    </div>
+                </div>
+                <div class="input-area" id="input-area">
+                    <button class="btn-send" id="start-btn">Começar Cálculo</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="results-explained"
+            style="display: none; padding: 2rem; background: var(--card-bg); border-radius: 20px; border: 1px solid var(--card-border); margin-top: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <div>
+                    <h2 style="margin-bottom: 0.5rem;">Entenda seu resultado</h2>
+                    <p style="color: var(--text-secondary);">Cálculo baseado na NBR 16655 adaptada.</p>
+                </div>
+                <button class="btn-auth" style="width: auto; padding: 0.8rem 1.5rem;" onclick="exportToPDF()">Exportar
+                    PDF</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.2fr 1.8fr; gap: 2rem;">
+                <div id="btu-breakdown"></div>
+                <div class="chart-box" style="background: rgba(0,0,0,0.2); padding: 1.5rem; border-radius: 16px;">
+                    <h4 style="margin-bottom: 1rem; color: var(--accent-color);">Economia Estimada (Mensal)</h4>
+                    <canvas id="economyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- AC Types Info -->
+        <section id="ac-types" style="padding: 4rem 0;">
+            <h2 style="margin-bottom: 2rem; text-align: center; font-size: 2.5rem;">Tipos de Ar-Condicionado</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                <div class="info-card">
+                    <i class="fas fa-snowflake"></i>
+                    <h3>Split Moderno</h3>
+                    <p>Silencioso e eficiente, ideal para residências.</p>
+                </div>
+                <div class="info-card">
+                    <i class="fas fa-th-large"></i>
+                    <h3>Janela</h3>
+                    <p>Clássico e robusto, fácil de instalar.</p>
+                </div>
+                <div class="info-card">
+                    <i class="fas fa-grip-lines"></i>
+                    <h3>Piso Teto</h3>
+                    <p>Alta potência para grandes ambientes.</p>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- Professional Engineering Section -->
+        <section id="pro-engineering"
+            style="padding: 4rem 2rem; background: linear-gradient(to bottom, rgba(14, 165, 233, 0.05), transparent); border-radius: 30px; margin: 4rem 0;">
+            <div style="text-align: center; margin-bottom: 3.5rem;">
+                <h2 style="font-size: 2.8rem; margin-bottom: 1rem;">Por que contratar um Engenheiro?</h2>
+                <p style="color: var(--text-secondary); max-width: 800px; margin: 0 auto;">Embora nossa ferramenta
+                    forneça uma base técnica, um projeto assinado por um profissional garante segurança jurídica,
+                    eficiência máxima e conformidade com as normas brasileiras.</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2.5rem;">
+                <div class="pro-card">
+                    <div class="pro-icon"><i class="fas fa-file-signature"></i></div>
+                    <h3>Segurança Legal (ART)</h3>
+                    <p>Ao contratar um engenheiro, você recebe a ART (Anotação de Responsabilidade Técnica), documento
+                        que assegura que o sistema segue as normas da ABNT e protege o proprietário em caso de falhas.
+                    </p>
+                </div>
+
+                <div class="pro-card">
+                    <div class="pro-icon"><i class="fas fa-coins"></i></div>
+                    <h3>Economia Operacional</h3>
+                    <p>Sistemas superdimensionados gastam energia excessiva, enquanto subdimensionados desgastam o
+                        equipamento. Um projeto técnico equilibra o investimento inicial com o custo de energia mensal.
+                    </p>
+                </div>
+
+                <div class="pro-card">
+                    <div class="pro-icon"><i class="fas fa-clipboard-list"></i></div>
+                    <h3>PMOC &amp; Legislação</h3>
+                    <p>Para edifícios públicos e coletivos, o PMOC (Plano de Manutenção Operação e Controle) é
+                        obrigatório por lei. Somente um engenheiro mecânico pode assinar e garantir a qualidade do ar.
+                    </p>
+                </div>
+
+                <div class="pro-card">
+                    <div class="pro-icon"><i class="fas fa-wrench"></i></div>
+                    <h3>Instalação sem Erros</h3>
+                    <p>Um projeto detalhado especifica o traçado das tubulações, drenos e pontos elétricos, evitando
+                        quebras desnecessárias e retrabalho na sua obra.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Purchase Links -->
+        <section id="where-to-buy"
+            style="padding: 4rem 0; text-align: center; border-top: 1px solid var(--card-border);">
+            <h2 style="margin-bottom: 2rem; font-size: 2.5rem;">Onde Comprar?</h2>
+            <div style="display: flex; gap: 2rem; justify-content: center; flex-wrap: wrap;">
+                <a href="https://www.mercadolivre.com.br/pampa/profile" target="_blank" class="buy-btn ml">
+                    <i class="fas fa-shopping-bag"></i> <span>Pampa Climatização</span>
+                </a>
+                <a href="https://www.amazon.com.br" target="_blank" class="buy-btn amz">
+                    <i class="fab fa-amazon"></i> <span>Amazon</span>
+                </a>
+            </div>
+        </section>
+    </main>
+
+    <!-- Pricing Tab -->
+    <main id="pricing-tab" class="tab-content text-content-main" style="display: none;">
+        <div class="hero-content">
+            <h1>Escolha seu Plano</h1>
+            <p>Aumente seus créditos e desbloqueie recursos profissionais.</p>
+        </div>
+        <section id="pricing" style="padding: 2rem 0; text-align: center;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
+                <div class="price-card">
+                    <h3>Básico</h3>
+                    <div class="price">Grátis</div>
+                    <ul class="features">
+                        <li>1 Simulação por dia</li>
+                    </ul>
+                    <button class="btn-price current">Plano Atual</button>
+                </div>
+                <div class="price-card featured">
+                    <div class="badge">Mais Popular</div>
+                    <h3>Premium</h3>
+                    <div class="price">R$ 19<span>/mês</span></div>
+                    <ul class="features">
+                        <li>Simulações Ilimitadas</li>
+                        <li>Histórico de Cálculos</li>
+                    </ul>
+                    <button class="btn-price" onclick="handlePurchase('premium')">Assinar Agora</button>
+                </div>
+                <div class="price-card">
+                    <h3>Profissional</h3>
+                    <div class="price">R$ 49<span>/mês</span></div>
+                    <ul class="features">
+                        <li>Relatórios em PDF</li>
+                        <li>Dicas Pro</li>
+                    </ul>
+                    <button class="btn-price" onclick="handlePurchase('pro')">Seja Pro</button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- History Tab -->
+    <main id="history-tab" class="tab-content text-content-main" style="display: none;">
+        <div class="hero-content">
+            <h1>Seu Histórico</h1>
+            <div id="history-list" style="display: grid; gap: 1rem; margin-top: 2rem;"></div>
+        </div>
+    </main>
+
+    <!-- Sun Simulator Tab -->
+    <div id="sun-tab" class="tab-content" style="display: none;">
+        <div id="canvas-container"></div>
+        <div class="ui-panel left">
+            <h1>Simulador Solar</h1>
+            <div class="control-group">
+                <label>Horário</label>
+                <input type="range" id="sun-slider" min="6" max="18" step="0.1" value="12">
+                <span id="sun-time">12:00</span>
+            </div>
+            <div class="control-group">
+                <label>Rotação</label>
+                <input type="range" id="house-slider" min="0" max="360" step="1" value="0">
+                <span id="house-rotation">0°</span>
+            </div>
+            <div class="compass-section">
+                <div id="compass-needle" class="compass-needle"></div>
+            </div>
+        </div>
+    </div>
+
+    <footer
+        style="padding: 2rem 10%; text-align: center; color: var(--text-secondary); border-top: 1px solid var(--card-border);">
+        <p>&copy; 2026 ClimaExpert. Especialistas em Conforto Térmico.</p>
+        <p style="margin-top: 0.5rem;"><a href="https://www.mercadolivre.com.br/pampa/profile" target="_blank" style="color: var(--accent-color); text-decoration: none;">🛒 Visite nossa loja no Mercado Livre</a></p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideAuthModal()">&times;</span>
+            <div id="modal-title" style="text-align: center; margin-bottom: 2rem;">
+                <h2>Bem-vindo!</h2>
+                <p>Faça login para continuar.</p>
+            </div>
+            <form onsubmit="handleAuth(event)">
+                <div class="input-group">
+                    <label>E-mail</label>
+                    <input type="email" id="auth-email" required placeholder="exemplo@email.com">
+                </div>
+                <div class="input-group">
+                    <label>Senha</label>
+                    <input type="password" id="auth-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn-auth">Entrar</button>
+            </form>
+            <div class="modal-footer" style="text-align: center; margin-top: 1rem;">
+                <span id="auth-toggle-text">Não tem conta?</span>
+                <a href="#" onclick="toggleAuthMode()">Cadastre-se</a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
